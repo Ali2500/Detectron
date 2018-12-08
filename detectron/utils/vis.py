@@ -392,3 +392,34 @@ def vis_one_image(
     output_name = os.path.basename(im_name) + '.' + ext
     fig.savefig(os.path.join(output_dir, '{}'.format(output_name)), dpi=dpi)
     plt.close('all')
+
+
+def parse_person_masks_and_bboxes(
+        boxes, segms, thresh=0.9):
+    """Constructs a numpy array with the detections visualized."""
+    assert segms is not None and len(segms) > 0
+
+    boxes, segms, keypoints, classes = convert_from_cls_format(boxes, segms, None)
+
+    if boxes is None or boxes.shape[0] == 0 or max(boxes[:, 4]) < thresh:
+        return None, None
+
+    masks = mask_util.decode(segms)
+
+    # Display in largest to smallest order to reduce occlusion
+    areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+    sorted_inds = np.argsort(-areas)
+
+    person_bboxes = list()
+    person_masks = list()
+
+    for i in sorted_inds:
+        bbox = boxes[i, :4]
+        score = boxes[i, -1]
+        if score < thresh or classes[i] != 1:
+            continue
+
+        person_bboxes.append(np.array([bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]], np.float32))
+        person_masks.append(masks[..., i])
+
+    return person_bboxes, person_masks
